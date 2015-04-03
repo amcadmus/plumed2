@@ -24,6 +24,7 @@
 #include "Keywords.h"
 #include <vector>
 #include <limits>
+#include <iostream>
 
 using namespace std;
 namespace PLMD{
@@ -112,6 +113,8 @@ void SwitchingFunction::registerKeywords( Keywords& keys ){
   keys.add("compulsory","MM","12","the value of m in the switching function (only needed for TYPE=RATIONAL)");
   keys.add("compulsory","A","the value of a in the switching funciton (only needed for TYPE=SMAP)");
   keys.add("compulsory","B","the value of b in the switching funciton (only needed for TYPE=SMAP)"); 
+  keys.add("compulsory","RMIN","the value of rmin in the switching funciton (only needed for TYPE=COSINE)");
+  keys.add("compulsory","RMAX","the value of rmax in the switching funciton (only needed for TYPE=COSINE)"); 
 }
 
 void SwitchingFunction::set(const std::string & definition,std::string& errormsg){
@@ -153,6 +156,12 @@ void SwitchingFunction::set(const std::string & definition,std::string& errormsg
     d = -static_cast<double>(b) / static_cast<double>(a);
   } else if(name=="EXP") type=exponential;
   else if(name=="GAUSSIAN") type=gaussian;
+  else if (name == "COSINE") {
+    rmin = rmax = 0;
+    Tools::parse (data, "RMIN", rmin);
+    Tools::parse (data, "RMAX", rmax);
+    type = cosine;
+  }
   else errormsg="cannot understand switching function type '"+name+"'";
   if( !data.empty() ){
       errormsg="found the following rogue keywords in switching function input : ";
@@ -179,6 +188,8 @@ std::string SwitchingFunction::description() const {
      ostr<<"gaussian";
   } else if(type==smap){
      ostr<<"smap";
+  } else if(type==cosine){
+     ostr<<"cosine";
   } else{
      plumed_merror("Unknown switching function type");
   }
@@ -187,6 +198,8 @@ std::string SwitchingFunction::description() const {
     ostr<<" nn="<<nn<<" mm="<<mm;
   } else if(type==smap){
     ostr<<" a="<<a<<" b="<<b;
+  } else if(type==cosine){
+    ostr<<" rmin="<<rmin<<" rmax="<<rmax;
   }
   return ostr.str(); 
 }
@@ -216,6 +229,41 @@ double SwitchingFunction::do_rational(double rdist,double&dfunc,int nn,int mm)co
     return result;
 }
 
+static double
+do_cosine (double rdist, double& dfunc, double rmin, double rmax)
+{
+  if (rdist >= 0){
+    if (rdist < rmin) {
+      dfunc = 0;
+      return 1;
+    }
+    else if (rdist < rmax){
+      double value = (rdist - rmin) / (rmax - rmin) * M_PI;
+      dfunc = -0.5 * sin(value) * M_PI / (rmax - rmin);
+      return 0.5 * (cos(value) + 1);
+    }
+    else {
+      dfunc = 0;
+      return 0;
+    }
+  }
+  else {
+    if (rdist > -rmin){
+      dfunc = 0;
+      return 1;
+    }
+    else if (rdist > -rmax){
+      double value = (-rdist - rmin) / (rmax - rmin) * M_PI;
+      dfunc = 0.5 * sin(value) * M_PI / (rmax - rmin);
+      return 0.5 * (cos(value) + 1);      
+    }
+    else {
+      dfunc = 0;
+      return 0;
+    }
+  }
+}
+
 double SwitchingFunction::calculateSqr(double distance2,double&dfunc)const{
   if(type==rational && nn%2==0 && mm%2==0 && d0==0.0){
     if(distance2>dmax_2){
@@ -235,7 +283,7 @@ double SwitchingFunction::calculateSqr(double distance2,double&dfunc)const{
     return calculate(distance,dfunc);
   }
 }
-
+  
 double SwitchingFunction::calculate(double distance,double&dfunc)const{
   plumed_massert(init,"you are trying to use an unset SwitchingFunction");
   if(distance>dmax){
@@ -260,7 +308,10 @@ double SwitchingFunction::calculate(double distance,double&dfunc)const{
     }else if(type==gaussian){
       result=exp(-0.5*rdist*rdist);
       dfunc=-rdist*result;
-    }else plumed_merror("Unknown switching function type");
+    }else if (type == cosine){
+      result = do_cosine (rdist, dfunc, rmin, rmax);
+    }
+    else plumed_merror("Unknown switching function type");
 // this is for the chain rule:
     dfunc*=invr0;
 // this is because calculate() sets dfunc to the derivative divided times the distance.
@@ -277,7 +328,7 @@ double SwitchingFunction::calculate(double distance,double&dfunc)const{
 double SwitchingFunction::inverse( const double& val ) const {
   double ival;  
 
-  if( type==smap ){
+  if( type==smap){
 // I add this error because I do not know how to compute ival
 // previously this line was just missing
 // In this manner at least we are should that it cannot happen that
@@ -294,6 +345,13 @@ double SwitchingFunction::inverse( const double& val ) const {
       ival=-log(val);
   } else if(type==gaussian){
       ival=2*sqrt( -log(val) );
+  }
+  else if (type == cosine){
+    ival = acos(2. * val - 1) / M_PI * (rmax - rmin) + rmin;
+    // std::cout << "eval at " << val << endl;
+    // std::cout << "should be " << acos(2. * val - 1) / M_PI * (rmax - rmin) + rmin << endl;
+    // std::cout << "return " << rmax << endl;
+    // ival = rmax;
   } else plumed_merror("Unknown switching function type");
 
   return ival/invr0 + d0;
