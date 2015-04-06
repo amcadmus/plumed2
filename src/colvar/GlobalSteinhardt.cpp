@@ -154,9 +154,10 @@ namespace PLMD{
       double ncoord=0.;
       Tensor virial;
       vector<Vector> deriv(getNumberOfAtoms());
-      double steinhardtPrefactor = 1./(6.*getNumberOfAtoms());
+      // double steinhardtPrefactor = sqrt(4*M_PI / (2. * 6. + 1.))/(6.*getNumberOfAtoms());
       // double steinhardtPrefactor = 1.;
-      cout << steinhardtPrefactor << endl;
+      // multiply by 2 because we count the pairs only once
+      double steinhardtPrefactor = 2. * sqrt(4*M_PI / (2. * tmom + 1.));
 
       if(nl->getStride()>0 && invalidateList){
 	nl->update(getPositions());
@@ -189,7 +190,6 @@ namespace PLMD{
 	// calculates the Steinhardt parameter at value of m
 	{
 	  double dfunc, dpoly_ass, md, tq6, itq6, real_z, imag_z; 
-	  Vector dz, myrealvec, myimagvec, real_dz, imag_dz;
 	  // The square root of -1
 	  std::complex<double> ii( 0.0, 1.0 ), dp_x, dp_y, dp_z;
 	  double sw, poly_ass, dlen;
@@ -199,19 +199,20 @@ namespace PLMD{
 	  if( sw>=1e-12 ){
 	    double dlen3 = dlen*dlen*dlen;
 	    // Derivatives of z/r wrt x, y, z
-	    dz = -( distance[2] / dlen3 )*distance;
+	    Vector dz (-( distance[2] / dlen3 )*distance);
 	    dz[2] += (1.0 / dlen);
-	    if (mvalue == 0){
+	    if (mvalue == 0 && !doImag){
 	      // Do stuff for m=0
 	      poly_ass=deriv_poly( 0, distance[2]/dlen, dpoly_ass );
 	      // Derivative wrt to the vector connecting the two atoms
-	      myrealvec = (+sw)*dpoly_ass*dz + poly_ass*(+dfunc)*distance;
+	      Vector myrealvec = (+sw)*dpoly_ass*dz + poly_ass*(+dfunc)*distance;
+	      // And store the vector function
+	      ncoord += sw*poly_ass;
+	      printf ("atom %d with %d, \t distance %f %f %f, \t value_acc %f\n", i0, i1, distance[0], distance[1], distance[2], sw*poly_ass);
 	      // Accumulate the derivatives
 	      deriv[i0] = deriv[i0] + (-myrealvec);
 	      deriv[i1] = deriv[i1] + (myrealvec);
 	      virial = virial + Tensor( -myrealvec,distance );
-	      // And store the vector function
-	      ncoord += sw*poly_ass;	    
 	    }
 	    else {
 	      bool posiFlag = true;
@@ -231,47 +232,54 @@ namespace PLMD{
 	      dp_y = md*powered*( ii*(1.0/dlen)-(distance[0]*distance[1])/dlen3-ii*(distance[1]*distance[1])/dlen3 );
 	      dp_z = md*powered*( -(distance[0]*distance[2])/dlen3-ii*(distance[1]*distance[2])/dlen3 );
 	      // Derivatives of real and imaginary parts of above
+	      Vector real_dz, imag_dz;
 	      real_dz[0] = real( dp_x ); real_dz[1] = real( dp_y ); real_dz[2] = real( dp_z );
-	      imag_dz[0] = imag( dp_x ); imag_dz[1] = imag( dp_y ); imag_dz[2] = imag( dp_z );  
+	      imag_dz[0] = imag( dp_x ); imag_dz[1] = imag( dp_y ); imag_dz[2] = imag( dp_z );
 
-	      // Real and imaginary parts of z
-	      real_z = real(com1*powered); 
-	      // Calculate steinhardt parameter
-	      tq6=poly_ass*real_z;   // Real part of steinhardt parameter
-	      // Complete derivative of steinhardt parameter
-	      myrealvec = (+sw)*dpoly_ass*real_z*dz + (+dfunc)*distance*tq6 + (+sw)*poly_ass*real_dz; 
-
-	      imag_z = imag(com1*powered );
-	      itq6=poly_ass*imag_z;  // Imaginary part of steinhardt parameter
-	      myimagvec = (+sw)*dpoly_ass*imag_z*dz + (+dfunc)*distance*itq6 + (+sw)*poly_ass*imag_dz;
-
-	      // Real part
-	      if (posiFlag){
-		ncoord += sw*tq6 ;
-		deriv[i0] = deriv[i0] + (-myrealvec);
-		deriv[i1] = deriv[i1] + (myrealvec);
-		virial = virial + Tensor( -myrealvec,distance );
-		// addComponent( tmom+m, sw*tq6 );
-		// addAtomsDerivative( tmom+m, 0, -myrealvec );
-		// addAtomsDerivative( tmom+m, i, myrealvec );
-		// addBoxDerivatives( tmom+m, Tensor( -myrealvec,distance ) );
+	      if (!doImag){
+		// Real part
+		// Real and imaginary parts of z
+		real_z = real(com1*powered); 
+		// Calculate steinhardt parameter
+		tq6=poly_ass*real_z;   // Real part of steinhardt parameter
+		// Complete derivative of steinhardt parameter
+		Vector myrealvec ( (+sw)*dpoly_ass*real_z*dz + (+dfunc)*distance*tq6 + (+sw)*poly_ass*real_dz ); 
+		if (posiFlag){
+		  ncoord += sw*tq6 ;
+		  deriv[i0] = deriv[i0] + (-myrealvec);
+		  deriv[i1] = deriv[i1] + (myrealvec);
+		  virial = virial + Tensor( -myrealvec,distance );
+		}
+		else {
+		  double pref=pow(-1.0,m); 
+		  // double pref=1.;
+		  // if (m % 2 != 0) pref = -1.;
+		  ncoord += pref*sw*tq6 ;
+		  deriv[i0] = deriv[i0] + (-pref * myrealvec);
+		  deriv[i1] = deriv[i1] + (pref * myrealvec);
+		  virial = virial + pref*Tensor( -myrealvec,distance );
+		}
 	      }
 	      else {
-		double pref=1.;
-		if (m % 2 != 0) pref = -1.;
-		ncoord += pref*sw*tq6 ;
-		deriv[i0] = deriv[i0] + (-pref * myrealvec);
-		deriv[i1] = deriv[i1] + (pref * myrealvec);
-		virial = virial + pref*Tensor( -myrealvec,distance );
-		// Store -m part of vector
-		// -m part of vector is just +m part multiplied by (-1.0)**m and multiplied by complex
-		// conjugate of Legendre polynomial
-		// Real part
-		// addComponent( tmom-m, pref*sw*tq6 );
-		// addAtomsDerivative( tmom-m, 0, -pref*myrealvec );
-		// addAtomsDerivative( tmom-m, i, pref*myrealvec );
-		// addBoxDerivatives( tmom-m, pref*Tensor( -myrealvec,distance ) );
-	      }
+		imag_z = imag(com1*powered );
+		itq6=poly_ass*imag_z;  // Imaginary part of steinhardt parameter
+		Vector myimagvec ( (+sw)*dpoly_ass*imag_z*dz + (+dfunc)*distance*itq6 + (+sw)*poly_ass*imag_dz );
+		if (posiFlag){
+		  ncoord += sw*itq6;
+		  deriv[i0] = deriv[i0] + (-myimagvec);
+		  deriv[i1] = deriv[i1] + (myimagvec);
+		  virial = virial + Tensor( -myimagvec,distance ) ;
+		}
+		else {
+		  double pref=pow(-1.0,m); 
+		  // double pref=1.;
+		  // if (m % 2 != 0) pref = -1.;
+		  ncoord += -pref*sw*itq6;
+		  deriv[i0] = deriv[i0] + (pref*myimagvec);
+		  deriv[i1] = deriv[i1] + (-pref*myimagvec);
+		  virial = virial + pref*Tensor( myimagvec,distance );
+		}
+	      }// end doImag
 	    }// end m != 0
 	  }// end sw larger than tolerance
 	}// end Steinhardt
