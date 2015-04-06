@@ -41,6 +41,13 @@ namespace PLMD{
       keys.add("optional","NL_STRIDE","The frequency with which we are updating the atoms in the neighbour list");
       keys.add("atoms","GROUPA","First list of atoms");
       keys.add("atoms","GROUPB","Second list of atoms (if empty, N*(N-1)/2 pairs in GROUPA are counted)");
+      keys.add("compulsory","NN","6","The n parameter of the switching function ");
+      keys.add("compulsory","MM","12","The m parameter of the switching function ");
+      keys.add("compulsory","D_0","0.0","The d_0 parameter of the switching function");
+      keys.add("compulsory","R_0","The r_0 parameter of the switching function");
+      keys.add("optional","SWITCH","This keyword is used if you want to employ an alternative to the continuous swiching function defined above. "
+	       "The following provides information on the \\ref switchingfunction that are available. " 
+	       "When this keyword is present you no longer need the NN, MM, D_0 and R_0 keywords."); 
     }
 
     GlobalSteinhardt::GlobalSteinhardt(const ActionOptions&ao):
@@ -108,6 +115,23 @@ namespace PLMD{
 	log.printf("  update every %d steps and cutoff %f\n",nl_st,nl_cut);
       }
 
+      string sw,errors;
+      parse("SWITCH",sw);
+      if(sw.length()>0){
+	switchingFunction.set(sw,errors);
+	if( errors.length()!=0 ) error("problem reading SWITCH keyword : " + errors );
+      } else {
+	int nn=6;
+	int mm=12;
+	double d0=0.0;
+	double r0=0.0;
+	parse("R_0",r0);
+	if(r0<=0.0) error("R_0 should be explicitly specified and positive");
+	parse("D_0",d0);
+	parse("NN",nn);
+	parse("MM",mm);
+	switchingFunction.set(nn,mm,r0,d0);
+      }
     }
 
     GlobalSteinhardt::~GlobalSteinhardt(){
@@ -151,13 +175,16 @@ namespace PLMD{
     void GlobalSteinhardt::calculate()
     {
 
-      double ncoord=0.;
+      double qvalue=0.;
       Tensor virial;
       vector<Vector> deriv(getNumberOfAtoms());
+      double ncoord_value = 0;
+      Tensor ncoord_virial;
+      vector<Vector> ncoord_deriv(getNumberOfAtoms());
+
       // double steinhardtPrefactor = sqrt(4*M_PI / (2. * 6. + 1.))/(6.*getNumberOfAtoms());
       // double steinhardtPrefactor = 1.;
-      // multiply by 2 because we count the pairs only once
-      double steinhardtPrefactor = 2. * sqrt(4*M_PI / (2. * tmom + 1.));
+      double steinhardtPrefactor = 1. * sqrt(4*M_PI / (2. * tmom + 1.));
 
       if(nl->getStride()>0 && invalidateList){
 	nl->update(getPositions());
@@ -196,7 +223,13 @@ namespace PLMD{
 	  std::complex<double> powered;
 	  dlen=distance.modulo(); 
 	  sw = switchingFunction.calculate( dlen, dfunc );
+
 	  if( sw>=1e-12 ){
+	    ncoord_value += sw;
+	    ncoord_deriv[i0] = ncoord_deriv[i0] + (-dfunc)*distance ;
+	    ncoord_deriv[i1] = ncoord_deriv[i1] + dfunc*distance ;
+	    ncoord_virial = ncoord_virial + (-dfunc)*Tensor(distance,distance);
+
 	    double dlen3 = dlen*dlen*dlen;
 	    // Derivatives of z/r wrt x, y, z
 	    Vector dz (-( distance[2] / dlen3 )*distance);
@@ -207,8 +240,8 @@ namespace PLMD{
 	      // Derivative wrt to the vector connecting the two atoms
 	      Vector myrealvec = (+sw)*dpoly_ass*dz + poly_ass*(+dfunc)*distance;
 	      // And store the vector function
-	      ncoord += sw*poly_ass;
-	      printf ("atom %d with %d, \t distance %f %f %f, \t value_acc %f\n", i0, i1, distance[0], distance[1], distance[2], sw*poly_ass);
+	      qvalue += sw*poly_ass;
+	      // printf ("atom %d with %d, \t distance %f %f %f, \t value_acc %f\n", i0, i1, distance[0], distance[1], distance[2], sw*poly_ass);
 	      // Accumulate the derivatives
 	      deriv[i0] = deriv[i0] + (-myrealvec);
 	      deriv[i1] = deriv[i1] + (myrealvec);
@@ -245,7 +278,7 @@ namespace PLMD{
 		// Complete derivative of steinhardt parameter
 		Vector myrealvec ( (+sw)*dpoly_ass*real_z*dz + (+dfunc)*distance*tq6 + (+sw)*poly_ass*real_dz ); 
 		if (posiFlag){
-		  ncoord += sw*tq6 ;
+		  qvalue += sw*tq6 ;
 		  deriv[i0] = deriv[i0] + (-myrealvec);
 		  deriv[i1] = deriv[i1] + (myrealvec);
 		  virial = virial + Tensor( -myrealvec,distance );
@@ -254,7 +287,7 @@ namespace PLMD{
 		  double pref=pow(-1.0,m); 
 		  // double pref=1.;
 		  // if (m % 2 != 0) pref = -1.;
-		  ncoord += pref*sw*tq6 ;
+		  qvalue += pref*sw*tq6 ;
 		  deriv[i0] = deriv[i0] + (-pref * myrealvec);
 		  deriv[i1] = deriv[i1] + (pref * myrealvec);
 		  virial = virial + pref*Tensor( -myrealvec,distance );
@@ -265,7 +298,7 @@ namespace PLMD{
 		itq6=poly_ass*imag_z;  // Imaginary part of steinhardt parameter
 		Vector myimagvec ( (+sw)*dpoly_ass*imag_z*dz + (+dfunc)*distance*itq6 + (+sw)*poly_ass*imag_dz );
 		if (posiFlag){
-		  ncoord += sw*itq6;
+		  qvalue += sw*itq6;
 		  deriv[i0] = deriv[i0] + (-myimagvec);
 		  deriv[i1] = deriv[i1] + (myimagvec);
 		  virial = virial + Tensor( -myimagvec,distance ) ;
@@ -274,7 +307,7 @@ namespace PLMD{
 		  double pref=pow(-1.0,m); 
 		  // double pref=1.;
 		  // if (m % 2 != 0) pref = -1.;
-		  ncoord += -pref*sw*itq6;
+		  qvalue += -pref*sw*itq6;
 		  deriv[i0] = deriv[i0] + (pref*myimagvec);
 		  deriv[i1] = deriv[i1] + (-pref*myimagvec);
 		  virial = virial + pref*Tensor( myimagvec,distance );
@@ -286,14 +319,27 @@ namespace PLMD{
       }// end neighbor loop
 
       if(!serial){
-	comm.Sum(ncoord);
+	comm.Sum(qvalue);
 	if(!deriv.empty()) comm.Sum(&deriv[0][0],3*deriv.size());
 	comm.Sum(virial);
+	comm.Sum(ncoord_value);
+	if(!ncoord_deriv.empty()) comm.Sum(&ncoord_deriv[0][0],3*ncoord_deriv.size());
+	comm.Sum(ncoord_virial);
       }
-
-      for(unsigned i=0;i<deriv.size();++i) setAtomsDerivatives(i, steinhardtPrefactor * deriv[i]);
-      setValue           (ncoord * steinhardtPrefactor);
-      setBoxDerivatives  (virial * steinhardtPrefactor);
+      
+      // for(unsigned i=0;i<deriv.size();++i) {
+      // 	setAtomsDerivatives(i, steinhardtPrefactor * deriv[i] );
+      // }
+      // setValue           (steinhardtPrefactor * qvalue  );
+      // setBoxDerivatives  (steinhardtPrefactor * (virial) );
+      double ncoord_valuei = 1./(ncoord_value);
+      double ncoord_valuei2 = ncoord_valuei * ncoord_valuei;
+      for(unsigned i=0;i<deriv.size();++i) {
+      	setAtomsDerivatives(i,
+      			    steinhardtPrefactor * ( deriv[i] * ncoord_value - qvalue * ncoord_deriv[i] ) * ncoord_valuei2 );
+      }
+      setValue           (steinhardtPrefactor * qvalue * ncoord_valuei );
+      setBoxDerivatives  (steinhardtPrefactor * (virial * ncoord_value - qvalue * ncoord_virial) * ncoord_valuei2 );
     }
   }
 }
