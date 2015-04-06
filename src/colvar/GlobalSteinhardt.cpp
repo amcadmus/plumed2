@@ -225,24 +225,24 @@ namespace PLMD{
 	      poly_ass=deriv_poly( m, distance[2]/dlen, dpoly_ass );
 	      // Calculate powe of complex number
 	      powered=pow(com1,m-1); md=static_cast<double>(m);
-	      // Real and imaginary parts of z
-	      real_z = real(com1*powered); imag_z = imag(com1*powered );
- 
-	      // Calculate steinhardt parameter
-	      tq6=poly_ass*real_z;   // Real part of steinhardt parameter
-	      itq6=poly_ass*imag_z;  // Imaginary part of steinhardt parameter
 
 	      // Derivatives wrt ( x/r + iy )^m
 	      dp_x = md*powered*( (1.0/dlen)-(distance[0]*distance[0])/dlen3-ii*(distance[0]*distance[1])/dlen3 );
 	      dp_y = md*powered*( ii*(1.0/dlen)-(distance[0]*distance[1])/dlen3-ii*(distance[1]*distance[1])/dlen3 );
 	      dp_z = md*powered*( -(distance[0]*distance[2])/dlen3-ii*(distance[1]*distance[2])/dlen3 );
-
 	      // Derivatives of real and imaginary parts of above
 	      real_dz[0] = real( dp_x ); real_dz[1] = real( dp_y ); real_dz[2] = real( dp_z );
 	      imag_dz[0] = imag( dp_x ); imag_dz[1] = imag( dp_y ); imag_dz[2] = imag( dp_z );  
 
+	      // Real and imaginary parts of z
+	      real_z = real(com1*powered); 
+	      // Calculate steinhardt parameter
+	      tq6=poly_ass*real_z;   // Real part of steinhardt parameter
 	      // Complete derivative of steinhardt parameter
 	      myrealvec = (+sw)*dpoly_ass*real_z*dz + (+dfunc)*distance*tq6 + (+sw)*poly_ass*real_dz; 
+
+	      imag_z = imag(com1*powered );
+	      itq6=poly_ass*imag_z;  // Imaginary part of steinhardt parameter
 	      myimagvec = (+sw)*dpoly_ass*imag_z*dz + (+dfunc)*distance*itq6 + (+sw)*poly_ass*imag_dz;
 
 	      // Real part

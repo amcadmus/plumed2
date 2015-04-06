@@ -38,6 +38,7 @@ public:
 
   void GlobalQ6::registerKeywords( Keywords& keys ){
     GlobalSteinhardt::registerKeywords( keys );
+    keys.addFlag("IMAG",false,"Compute the imaginary part of the Steinhardt parameter ");
     keys.add("compulsory","MVALUE","0","The value m in angular momentum ");
     keys.add("compulsory","NN","6","The n parameter of the switching function ");
     keys.add("compulsory","MM","12","The m parameter of the switching function ");
@@ -91,12 +92,12 @@ public:
       parse("MM",mm);
       switchingFunction.set(nn,mm,r0,d0);
     }
-    int mvalue = 0;
     parse("MVALUE", mvalue);
+
+    parseFlag("IMAG",doImag);
   
     checkRead();
-    setMValue (mvalue);
-
+   
     log<<"  contacts are counted with cutoff "<<switchingFunction.description()<<"\n";
   }
 }

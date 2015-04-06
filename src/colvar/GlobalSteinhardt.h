@@ -37,13 +37,13 @@ class GlobalSteinhardt : public Colvar {
   bool invalidateList;
   bool firsttime;
   unsigned tmom;
-  int mvalue;
   std::vector<double> coeff_poly;
   std::vector<double> normaliz;  
   double deriv_poly( const unsigned& m, const double& val, double& df );
 protected:
+  int mvalue;
+  bool doImag;
   SwitchingFunction switchingFunction;
-  void setMValue (const unsigned& v) {mvalue = v;}
   void setAngularMomentum( const unsigned& ang ) {tmom = ang;}
   void setPolyCoeff (const std::vector<double > & coeff) {coeff_poly = coeff;}
   void setNormalization (const std::vector<double > & normaliz_) {normaliz = normaliz_;}
