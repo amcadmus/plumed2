@@ -19,7 +19,7 @@
    You should have received a copy of the GNU Lesser General Public License
    along with plumed.  If not, see <http://www.gnu.org/licenses/>.
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-#include "GlobalSteinhardt.h"
+#include "GlobalSteinhardtItem.h"
 #include "core/ActionRegister.h"
 #include <string>
 
@@ -28,23 +28,23 @@ using namespace std;
 namespace PLMD {
 namespace colvar {
 
-class GlobalQ4 : public GlobalSteinhardt {  
+class GlobalQ4Item : public GlobalSteinhardtItem {  
 public:
   static void registerKeywords( Keywords& keys );
-  GlobalQ4( const ActionOptions& ao );
+  GlobalQ4Item( const ActionOptions& ao );
 };
 
-  PLUMED_REGISTER_ACTION(GlobalQ4,"GlobalQ4")
+  PLUMED_REGISTER_ACTION(GlobalQ4Item,"GlobalQ4Item")
 
-  void GlobalQ4::registerKeywords( Keywords& keys ){
-    GlobalSteinhardt::registerKeywords( keys );
+  void GlobalQ4Item::registerKeywords( Keywords& keys ){
+    GlobalSteinhardtItem::registerKeywords( keys );
     keys.addFlag("IMAG",false,"Compute the imaginary part of the Steinhardt parameter ");
     keys.add("compulsory","MVALUE","0","The value m in angular momentum ");
   }
 
-  GlobalQ4::GlobalQ4(const ActionOptions& ao ):
+  GlobalQ4Item::GlobalQ4Item(const ActionOptions& ao ):
       Action(ao),
-      GlobalSteinhardt(ao)
+      GlobalSteinhardtItem(ao)
   {
     setAngularMomentum(4);
 

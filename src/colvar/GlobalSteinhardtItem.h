@@ -19,8 +19,8 @@
    You should have received a copy of the GNU Lesser General Public License
    along with plumed.  If not, see <http://www.gnu.org/licenses/>.
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-#ifndef __PLUMED_colvar_GlobalSteinhardt_h
-#define __PLUMED_colvar_GlobalSteinhardt_h
+#ifndef __PLUMED_colvar_GlobalSteinhardtItem_h
+#define __PLUMED_colvar_GlobalSteinhardtItem_h
 #include "Colvar.h"
 #include "tools/SwitchingFunction.h"
 
@@ -30,7 +30,7 @@ class NeighborList;
 
 namespace colvar{
 
-class GlobalSteinhardt : public Colvar {
+class GlobalSteinhardtItem : public Colvar {
   bool pbc;
   bool serial;
   NeighborList *nl;
@@ -48,8 +48,8 @@ protected:
   void setPolyCoeff (const std::vector<double > & coeff) {coeff_poly = coeff;}
   void setNormalization (const std::vector<double > & normaliz_) {normaliz = normaliz_;}
 public:
-  GlobalSteinhardt(const ActionOptions&);
-  ~GlobalSteinhardt();
+  GlobalSteinhardtItem(const ActionOptions&);
+  ~GlobalSteinhardtItem();
 // active methods:
   virtual void calculate();
   virtual void prepare();

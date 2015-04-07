@@ -19,7 +19,7 @@
    You should have received a copy of the GNU Lesser General Public License
    along with plumed.  If not, see <http://www.gnu.org/licenses/>.
    +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-#include "GlobalSteinhardt.h"
+#include "GlobalSteinhardtItem.h"
 #include "tools/NeighborList.h"
 #include "tools/Communicator.h"
 
@@ -32,7 +32,7 @@ using namespace std;
 namespace PLMD{
   namespace colvar{
 
-    void GlobalSteinhardt::registerKeywords( Keywords& keys ){
+    void GlobalSteinhardtItem::registerKeywords( Keywords& keys ){
       Colvar::registerKeywords(keys);
       keys.addFlag("SERIAL",false,"Perform the calculation in serial - for debug purpose");
       keys.addFlag("PAIR",false,"Pair only 1st element of the 1st group with 1st element in the second, etc");
@@ -50,7 +50,7 @@ namespace PLMD{
 	       "When this keyword is present you no longer need the NN, MM, D_0 and R_0 keywords."); 
     }
 
-    GlobalSteinhardt::GlobalSteinhardt(const ActionOptions&ao):
+    GlobalSteinhardtItem::GlobalSteinhardtItem(const ActionOptions&ao):
 	PLUMED_COLVAR_INIT(ao),
 	pbc(true),
 	serial(false),
@@ -134,11 +134,11 @@ namespace PLMD{
       }
     }
 
-    GlobalSteinhardt::~GlobalSteinhardt(){
+    GlobalSteinhardtItem::~GlobalSteinhardtItem(){
       delete nl;
     }
 
-    void GlobalSteinhardt::prepare(){
+    void GlobalSteinhardtItem::prepare(){
       if(nl->getStride()>0){
 	if(firsttime || (getStep()%nl->getStride()==0)){
 	  requestAtoms(nl->getFullAtomList());
@@ -153,7 +153,7 @@ namespace PLMD{
       }
     }
 
-    inline double GlobalSteinhardt::
+    inline double GlobalSteinhardtItem::
     deriv_poly( const unsigned& m, const double& val, double& df ){
       double fact=1.0;
       for(unsigned j=1;j<=m;++j) fact=fact*j;
@@ -172,7 +172,7 @@ namespace PLMD{
     }
 
 // calculator
-    void GlobalSteinhardt::calculate()
+    void GlobalSteinhardtItem::calculate()
     {
 
       double qvalue=0.;

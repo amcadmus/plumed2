@@ -81,6 +81,7 @@ void Steinhardt::calculateVector(){
          MultiColvarBase::addAtomsDerivatives( 0, current_atoms[0], (-dfunc)*distance );
          MultiColvarBase::addAtomsDerivatives( 0, current_atoms[i], (+dfunc)*distance );
          MultiColvarBase::addBoxDerivatives( 0, (-dfunc)*Tensor( distance,distance ) ); 
+	 // printf ("atom %d with %d, \t distance %f %f %f\n", current_atoms[0], current_atoms[i], distance[0], distance[1], distance[2]);
 
          // Do stuff for m=0
          poly_ass=deriv_poly( 0, distance[2]/dlen, dpoly_ass );
