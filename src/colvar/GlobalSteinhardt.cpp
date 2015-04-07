@@ -219,7 +219,6 @@ namespace PLMD{
 	  distance=delta(getPosition(i0),getPosition(i1));
 	}
 
-	// calculates the Steinhardt parameter at value of m
 	{
 	  double dfunc, dpoly_ass, md, tq6, itq6, real_z, imag_z; 
 	  // The square root of -1
