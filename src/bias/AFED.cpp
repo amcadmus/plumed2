@@ -188,7 +188,7 @@ namespace PLMD{
 	const double cv=difference(ii, myaa[ii], getArgument(ii)); // this gives: getArgument(i) - aa[i]
 	myf[ii] = - kappa[ii] * cv;	// this is the f to the system, 
 	myaav[ii] += -myf[ii] * mydt;	// to evlove the cv, minus the f.
-	ener += 0.5 * cv * cv;
+	ener += 0.5 * kappa[ii] * cv * cv;
       }
       return ener;
     }
