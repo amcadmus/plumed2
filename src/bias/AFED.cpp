@@ -151,7 +151,7 @@ namespace PLMD{
       log.printf ("\n");      
       log.printf ("  using mass: ");
       for (unsigned ii = 0; ii < kappa.size(); ++ii){
-	log.printf ("%f ", mass[ii]);
+	log.printf ("%e ", mass[ii]);
       }
       log.printf ("\n");      
 
