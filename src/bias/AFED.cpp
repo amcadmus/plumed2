@@ -246,7 +246,7 @@ namespace PLMD{
       for(unsigned i=0;i<narg;++i){
 	// std::cout << "write to : " << getPntrToArgument(i)->getName() << std::endl;
 	getPntrToComponent(getPntrToArgument(i)->getName()+"_cntr")->set(aa[i]); 
-	getPntrToComponent(getPntrToArgument(i)->getName()+"_cntrv")->set(aav[i]); 
+	getPntrToComponent(getPntrToArgument(i)->getName()+"_cntrv")->set(aav[i]/mass[ii]); 
 	if(oldaa.size()==aa.size() && oldf.size()==f.size()) {
 	  work[i] += 0.5 * (oldf[i] + f[i]) * (aa[i] - oldaa[i]) ;
 	}
