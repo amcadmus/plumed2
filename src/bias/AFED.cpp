@@ -243,6 +243,9 @@ namespace PLMD{
       stepA (0.5 * dt, aa, aav, f);
       ene = stepB (0.5 * dt, aa, aav, f);
       // std::cout << "rank : " << comm.Get_rank()  << " cv " << aa[0] << std::endl;
+      comm.Bcast (&aa[0],	narg, 0);
+      comm.Bcast (&aav[0],	narg, 0);
+      comm.Bcast (&f[0],	narg, 0);
 
       for(unsigned i=0;i<narg;++i){
 	// std::cout << "write to : " << getPntrToArgument(i)->getName() << std::endl;
@@ -251,7 +254,7 @@ namespace PLMD{
 	if(oldaa.size()==aa.size() && oldf.size()==f.size()) {
 	  work[i] += 0.5 * (oldf[i] + f[i]) * (aa[i] - oldaa[i]) ;
 	}
-	getPntrToComponent(getPntrToArgument(i)->getName()+"_work")->set(work[i]); 
+	getPntrToComponent(getPntrToArgument(i)->getName()+"_work")->set(work[i]);
 	setOutputForce(i,f[i]);
 	totf2+=f[i]*f[i];
       };
