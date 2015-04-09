@@ -40,6 +40,7 @@ namespace PLMD{
       std::vector<double>	kappa;
       std::vector<double>	gamma;
       std::vector<double>	sigma;
+      std::vector<double>	mass;
 
       std::vector<double>	oldaa;
       std::vector<double>	oldaav;
@@ -73,7 +74,6 @@ namespace PLMD{
       keys.use("ARG");
       keys.add ("compulsory", "SEED", "0", "The random seed ");
       keys.add ("compulsory", "DT", "0.001", "The time step ");
-      keys.add ("compulsory", "INIT", "the init value of CVs ");
       keys.add ("compulsory", "TEMP", "set the target temperature for CVs ");
       keys.add ("compulsory", "TAU",  "set time-scale of temperature control for CVs ");
       keys.add ("compulsory", "KAPPA",  "restraint constant ");
@@ -102,12 +102,12 @@ namespace PLMD{
 	kappa(getNumberOfArguments()),
 	gamma(getNumberOfArguments()),
 	sigma(getNumberOfArguments()),
-	oldaa(getNumberOfArguments()),
+	mass(getNumberOfArguments()),
+	oldaa(getNumberOfArguments(), 0.),
 	oldaav(getNumberOfArguments(), 0.),
 	oldf(getNumberOfArguments(), 0.),
 	work(getNumberOfArguments(), 0.)
     {
-      parseVector ("INIT",oldaa);
       parse ("DT",dt);
       parseVector ("TEMP",temp);
       parseVector ("TAU",tau);
@@ -119,8 +119,9 @@ namespace PLMD{
       rand.setSeed (seed + rank);
       
       for (unsigned ii = 0; ii < getNumberOfArguments(); ++ ii){
+	mass[ii] = tau[ii] * tau[ii] * kb * temp[ii];	// from Yu et.cl. JCP 2014	
 	gamma[ii] = 1./tau[ii];
-	sigma[ii] = sqrt (2. * gamma[ii] / (kb * temp[ii]));
+	sigma[ii] = sqrt (2. * gamma[ii] * (kb * temp[ii]));
       }
 
       log.printf ("  rand seed is %d\n", seed);
@@ -148,6 +149,11 @@ namespace PLMD{
 	log.printf ("%f ", kappa[ii]);
       }
       log.printf ("\n");      
+      log.printf ("  using mass: ");
+      for (unsigned ii = 0; ii < kappa.size(); ++ii){
+	log.printf ("%f ", mass[ii]);
+      }
+      log.printf ("\n");      
 
       checkRead();
 
@@ -162,9 +168,8 @@ namespace PLMD{
         addComponent(comp); componentIsNotPeriodic(comp);
 	comp=getPntrToArgument(i)->getName()+"_work"; // each spring has its own work
         addComponent(comp); componentIsNotPeriodic(comp);
-	comp=getPntrToArgument(i)->getName()+"_cntrv"; // each spring has its own kappa 
+	comp=getPntrToArgument(i)->getName()+"_cntrv"; // each spring has its own velocity 
         addComponent(comp); componentIsNotPeriodic(comp);
-        work.push_back(0.); // initialize the work value 
       }
 
       log<<"  Bibliography ";
@@ -181,8 +186,8 @@ namespace PLMD{
       double ener = 0.;
       for (unsigned ii = 0; ii < narg; ++ ii ){
 	const double cv=difference(ii, myaa[ii], getArgument(ii)); // this gives: getArgument(i) - aa[i]
-	myf[ii] = - kappa[ii] * cv;
-	myaav[ii] += myf[ii] * mydt;
+	myf[ii] = - kappa[ii] * cv;	// this is the f to the system, 
+	myaav[ii] += -myf[ii] * mydt;	// to evlove the cv, minus the f.
 	ener += 0.5 * cv * cv;
       }
       return ener;
@@ -195,7 +200,7 @@ namespace PLMD{
     {
       unsigned narg=getNumberOfArguments();
       for (unsigned ii = 0; ii < narg; ++ ii ){
-	myaa[ii] += myaav[ii] * dt;
+	myaa[ii] += myaav[ii] * dt / mass[ii];
       }
     }
 
@@ -208,11 +213,11 @@ namespace PLMD{
       for (unsigned ii = 0; ii < narg; ++ ii ){
 	double expgammadt = exp (-gamma[ii] * dt) ;
 	double rand_gaussian = rand.Gaussian();
-	std::cout << "rank : " << comm.Get_rank()  << " rand " << rand_gaussian << std::endl;
-	std::cout << std::fflush;
+	// std::cout << "rank : " << comm.Get_rank()  << " rand " << rand_gaussian << std::endl;
+	// std::cout << std::fflush;
 	myaav[ii] = 
 	    expgammadt * myaav[ii] + 
-	    sigma[ii] / (sqrt(2. * gamma[ii])) * sqrt(1. - expgammadt * expgammadt) * rand_gaussian;
+	    sigma[ii] / (sqrt(2. * gamma[ii])) * sqrt(1. - expgammadt * expgammadt) * sqrt(mass[ii]) * rand_gaussian;
       }   
     }
 
@@ -224,6 +229,14 @@ namespace PLMD{
 
       std::vector<double > aa(oldaa), aav(oldaav), f(oldf);
 
+      long int now=getStep();
+      if (now == 0){
+	for(unsigned i=0;i<narg;++i){
+	  aa[i] = getArgument(i);
+	  aav[i] = 0.;
+	}
+      }
+
       stepB (0.5 * dt, aa, aav, f);
       stepA (0.5 * dt, aa, aav, f);
       stepO (1.0 * dt, aa, aav, f);
@@ -231,6 +244,7 @@ namespace PLMD{
       ene = stepB (0.5 * dt, aa, aav, f);
 
       for(unsigned i=0;i<narg;++i){
+	// std::cout << "write to : " << getPntrToArgument(i)->getName() << std::endl;
 	getPntrToComponent(getPntrToArgument(i)->getName()+"_cntr")->set(aa[i]); 
 	getPntrToComponent(getPntrToArgument(i)->getName()+"_cntrv")->set(aav[i]); 
 	if(oldaa.size()==aa.size() && oldf.size()==f.size()) {
@@ -242,6 +256,7 @@ namespace PLMD{
       };
       oldf=f;
       oldaa=aa;
+      oldaav = aav;
       getPntrToComponent("bias")->set(ene);
       getPntrToComponent("force2")->set(totf2);
     }
