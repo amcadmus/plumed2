@@ -242,11 +242,12 @@ namespace PLMD{
       stepO (1.0 * dt, aa, aav, f);
       stepA (0.5 * dt, aa, aav, f);
       ene = stepB (0.5 * dt, aa, aav, f);
+      // std::cout << "rank : " << comm.Get_rank()  << " cv " << aa[0] << std::endl;
 
       for(unsigned i=0;i<narg;++i){
 	// std::cout << "write to : " << getPntrToArgument(i)->getName() << std::endl;
 	getPntrToComponent(getPntrToArgument(i)->getName()+"_cntr")->set(aa[i]); 
-	getPntrToComponent(getPntrToArgument(i)->getName()+"_cntrv")->set(aav[i]/mass[ii]); 
+	getPntrToComponent(getPntrToArgument(i)->getName()+"_cntrv")->set(aav[i]/mass[i]); 
 	if(oldaa.size()==aa.size() && oldf.size()==f.size()) {
 	  work[i] += 0.5 * (oldf[i] + f[i]) * (aa[i] - oldaa[i]) ;
 	}
