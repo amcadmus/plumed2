@@ -163,8 +163,9 @@ void Layer::registerKeywords( Keywords& keys ){
       }
     }
  
-    double value0=0.;
-    double value1=0.;
+    double value = 0.;
+    // double value0=0.;
+    // double value1=0.;
     // double check = 0;
     vector<Vector> deriv(getNumberOfAtoms());
     // vector<Vector> deriv0(getNumberOfAtoms());
@@ -174,27 +175,11 @@ void Layer::registerKeywords( Keywords& keys ){
 
     for(unsigned int i = 0; i < getNumberOfAtoms(); i++) {
       Vector posi = getPosition(i) ;
-      value0 += ninv * cos(twoPiNLi * posi[dir] + shift);
-      value1 += ninv * cos(twoPiNLi * posi[dir] + shift + M_PI);
-    }
-    double value = 0.;
-    bool used0;
-    if (fabs(value0) > fabs(value1)){
-      used0 = true;  
-      value =  value0;
-    }
-    else {
-      used0 = false;
-      value = value1;
+      value += ninv * cos(twoPiNLi * posi[dir] + shift);
     }
     for(unsigned int i = 0; i < getNumberOfAtoms(); i++) {
       Vector posi = getPosition(i) ;
-      if (used0){
-	deriv[i][dir] += value * -ninv * twoPiNLi * sin(twoPiNLi * posi[dir] + shift);
-      }
-      else {
-	deriv[i][dir] += value * -ninv * twoPiNLi * sin(twoPiNLi * posi[dir] + shift + M_PI);
-      }
+      deriv[i][dir] += value * -ninv * twoPiNLi * sin(twoPiNLi * posi[dir] + shift);
     }
     value = 0.5 * value * value;
     
