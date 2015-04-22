@@ -169,7 +169,7 @@ void Layer::registerKeywords( Keywords& keys ){
     vector<Vector> deriv0(getNumberOfAtoms());
     vector<Vector> deriv1(getNumberOfAtoms());
     Tensor virial;
-    cout << "used shift is " << shift <<endl;
+    // cout << "used shift is " << shift <<endl;
     
     for(unsigned int i = 0; i < getNumberOfAtoms(); i++) {
       Vector posi = getPosition(i) ;
