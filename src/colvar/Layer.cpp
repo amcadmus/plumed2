@@ -166,42 +166,75 @@ void Layer::registerKeywords( Keywords& keys ){
     double value0=0.;
     double value1=0.;
     // double check = 0;
-    vector<Vector> deriv0(getNumberOfAtoms());
-    vector<Vector> deriv1(getNumberOfAtoms());
+    vector<Vector> deriv(getNumberOfAtoms());
+    // vector<Vector> deriv0(getNumberOfAtoms());
+    // vector<Vector> deriv1(getNumberOfAtoms());
     Tensor virial;
     // cout << "used shift is " << shift <<endl;
-    
+
     for(unsigned int i = 0; i < getNumberOfAtoms(); i++) {
       Vector posi = getPosition(i) ;
-      // check += sin(twoPiNLi * posi[dir] + shift);
-      value0 += ninv * (0.5 * cos(twoPiNLi * posi[dir] + shift) + .5);
-      deriv0[i][dir] = deriv0[i][dir] + -ninv * 0.5 * twoPiNLi * sin(twoPiNLi * posi[dir] + shift);
-      if (comp_shift){
-	value1 += ninv * (0.5 * cos(twoPiNLi * posi[dir] + shift + M_PI) + .5);
-	deriv1[i][dir] = deriv1[i][dir] + -ninv * 0.5 * twoPiNLi * sin(twoPiNLi * posi[dir] + shift + M_PI);
-      }
+      value0 += ninv * cos(twoPiNLi * posi[dir] + shift);
+      value1 += ninv * cos(twoPiNLi * posi[dir] + shift + M_PI);
     }
-
-    if (comp_shift){
-      if (value0 > value1){
-	setValue           (value0);
-	for(unsigned i = 0; i < deriv0.size(); ++ i) {
-	  setAtomsDerivatives(i,deriv0[i]);
-	}
-      }
-      else {
-	setValue           (value1);
-	for(unsigned i = 0; i < deriv1.size(); ++ i) {
-	  setAtomsDerivatives(i,deriv1[i]);
-	}
-      }
+    double value = 0.;
+    bool used0;
+    if (fabs(value0) > fabs(value1)){
+      used0 = true;  
+      value =  value0;
     }
     else {
-      setValue           (value0);
-      for(unsigned i = 0; i < deriv0.size(); ++ i) {
-	setAtomsDerivatives(i,deriv0[i]);
-      }      
+      used0 = false;
+      value = value1;
     }
+    for(unsigned int i = 0; i < getNumberOfAtoms(); i++) {
+      Vector posi = getPosition(i) ;
+      if (used0){
+	deriv[i][dir] += value * -ninv * twoPiNLi * sin(twoPiNLi * posi[dir] + shift);
+      }
+      else {
+	deriv[i][dir] += value * -ninv * twoPiNLi * sin(twoPiNLi * posi[dir] + shift + M_PI);
+      }
+    }
+    value = 0.5 * value * value;
+    
+    setValue (value);
+    for(unsigned i = 0; i < deriv.size(); ++ i) {
+      setAtomsDerivatives (i, deriv[i]);
+    }
+
+    
+    // for(unsigned int i = 0; i < getNumberOfAtoms(); i++) {
+    //   Vector posi = getPosition(i) ;
+    //   // check += sin(twoPiNLi * posi[dir] + shift);
+    //   value0 += ninv * (0.5 * cos(twoPiNLi * posi[dir] + shift) + .5);
+    //   deriv0[i][dir] = deriv0[i][dir] + -ninv * 0.5 * twoPiNLi * sin(twoPiNLi * posi[dir] + shift);
+    //   if (comp_shift){
+    // 	value1 += ninv * (0.5 * cos(twoPiNLi * posi[dir] + shift + M_PI) + .5);
+    // 	deriv1[i][dir] = deriv1[i][dir] + -ninv * 0.5 * twoPiNLi * sin(twoPiNLi * posi[dir] + shift + M_PI);
+    //   }
+    // }
+
+    // if (comp_shift){
+    //   if (value0 > value1){
+    // 	setValue           (value0);
+    // 	for(unsigned i = 0; i < deriv0.size(); ++ i) {
+    // 	  setAtomsDerivatives(i,deriv0[i]);
+    // 	}
+    //   }
+    //   else {
+    // 	setValue           (value1);
+    // 	for(unsigned i = 0; i < deriv1.size(); ++ i) {
+    // 	  setAtomsDerivatives(i,deriv1[i]);
+    // 	}
+    //   }
+    // }
+    // else {
+    //   setValue           (value0);
+    //   for(unsigned i = 0; i < deriv0.size(); ++ i) {
+    // 	setAtomsDerivatives(i,deriv0[i]);
+    //   }      
+    // }
   }
 }
 }
